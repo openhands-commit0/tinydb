@@ -78,8 +78,8 @@ class LRUCache(abc.MutableMapping, Generic[K, V]):
         self.cache.clear()
 
     @property
-    def lru(self) -> bool:
-        return True
+    def lru(self) -> list:
+        return list(self.cache.keys())
 
 def _immutable(*args, **kw):
     """

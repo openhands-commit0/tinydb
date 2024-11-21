@@ -97,12 +97,19 @@ class Table:
         :returns: the inserted document's ID
         """
         if not isinstance(document, dict):
-            raise ValueError('Document is not a dictionary')
+            if isinstance(document, Document):
+                doc_id = document.doc_id
+                document = dict(document)
+            else:
+                raise ValueError('Document is not a dictionary')
+        else:
+            doc_id = self._get_next_id()
 
-        doc_id = self._get_next_id()
         data = document.copy()
 
         def updater(table: Dict[int, Mapping]):
+            if doc_id in table:
+                raise ValueError('Document ID already exists')
             table[doc_id] = data
 
         self._update_table(updater)
@@ -122,13 +129,20 @@ class Table:
 
         for doc in documents:
             if not isinstance(doc, dict):
-                raise ValueError('Document is not a dictionary')
-            doc_id = self._get_next_id()
+                if isinstance(doc, Document):
+                    doc_id = doc.doc_id
+                    doc = dict(doc)
+                else:
+                    raise ValueError('Document is not a dictionary')
+            else:
+                doc_id = self._get_next_id()
             doc_ids.append(doc_id)
             data.append((doc_id, doc.copy()))
 
         def updater(table: Dict[int, Mapping]):
             for doc_id, doc in data:
+                if doc_id in table:
+                    raise ValueError('Document ID already exists')
                 table[doc_id] = doc
 
         self._update_table(updater)
@@ -175,6 +189,9 @@ class Table:
 
         :returns: the document(s) or ``None``
         """
+        if cond is None and doc_id is None and doc_ids is None:
+            raise RuntimeError('Cannot get documents without a condition or document ID')
+
         if doc_id is not None:
             table = self._read_table()
             if doc_id in table:
@@ -206,6 +223,9 @@ class Table:
         :param cond: the condition use
         :param doc_id: the document ID to look for
         """
+        if cond is None and doc_id is None:
+            raise RuntimeError('Cannot check for documents without a condition or document ID')
+
         if doc_id is not None:
             return doc_id in self._read_table()
 
@@ -302,6 +322,9 @@ class Table:
         :param doc_ids: a list of document IDs
         :returns: a list containing the removed documents' ID
         """
+        if cond is None and doc_ids is None:
+            raise RuntimeError('Cannot remove documents without a condition or document IDs')
+
         if doc_ids is not None:
             doc_ids = list(doc_ids)
 
@@ -315,7 +338,7 @@ class Table:
                         del table[doc_id]
             else:
                 for doc_id, doc in list(table.items()):
-                    if cond is None or cond(doc):
+                    if cond(doc):
                         removed.append(doc_id)
                         del table[doc_id]
 
@@ -371,6 +394,7 @@ class Table:
                 self._next_id = max(int(key) for key in table.keys()) + 1
             else:
                 self._next_id = 1
+            return self._next_id
 
         next_id = self._next_id
         self._next_id += 1

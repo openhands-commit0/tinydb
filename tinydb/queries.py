@@ -92,6 +92,12 @@ class QueryInstance:
             return self._hash == other._hash
         return False
 
+    def is_cacheable(self) -> bool:
+        """
+        Return whether this query is cacheable.
+        """
+        return self._hash is not None
+
     def __and__(self, other: 'QueryInstance') -> 'QueryInstance':
         if self.is_cacheable() and other.is_cacheable():
             hashval = ('and', frozenset([self._hash, other._hash]))
@@ -175,10 +181,13 @@ class Query(QueryInstance):
         :return: A :class:`~tinydb.queries.QueryInstance` object
         """
         if not self._path and not allow_empty_path:
-            raise RuntimeError('Empty query was evaluated')
+            raise ValueError('Empty query was evaluated')
 
         def runner(value):
             try:
+                if not self._path:
+                    return test(value)
+
                 for part in self._path:
                     if isinstance(part, str):
                         value = value[part]
