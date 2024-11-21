@@ -17,7 +17,14 @@ def touch(path: str, create_dirs: bool):
     :param path: The file to create.
     :param create_dirs: Whether to create all missing parent directories.
     """
-    pass
+    if create_dirs:
+        base_dir = os.path.dirname(path)
+        if base_dir:
+            os.makedirs(base_dir, exist_ok=True)
+
+    if not os.path.exists(path):
+        with open(path, 'a'):
+            pass
 
 class Storage(ABC):
     """
@@ -83,6 +90,30 @@ class JSONStorage(Storage):
             touch(path, create_dirs=create_dirs)
         self._handle = open(path, mode=self._mode, encoding=encoding)
 
+    def read(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        # Get the file size
+        self._handle.seek(0, os.SEEK_END)
+        size = self._handle.tell()
+
+        if not size:
+            # File is empty
+            return None
+        else:
+            self._handle.seek(0)
+            try:
+                return json.load(self._handle)
+            except ValueError:
+                return None
+
+    def write(self, data: Dict[str, Dict[str, Any]]) -> None:
+        self._handle.seek(0)
+        json.dump(data, self._handle, **self.kwargs)
+        self._handle.truncate()
+        self._handle.flush()
+
+    def close(self) -> None:
+        self._handle.close()
+
 class MemoryStorage(Storage):
     """
     Store the data as JSON in memory.
@@ -94,3 +125,9 @@ class MemoryStorage(Storage):
         """
         super().__init__()
         self.memory = None
+
+    def read(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        return self.memory
+
+    def write(self, data: Dict[str, Dict[str, Any]]) -> None:
+        self.memory = data
