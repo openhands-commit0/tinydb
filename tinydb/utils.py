@@ -68,6 +68,19 @@ class LRUCache(abc.MutableMapping, Generic[K, V]):
     def __iter__(self) -> Iterator[K]:
         return iter(self.cache)
 
+    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def clear(self) -> None:
+        self.cache.clear()
+
+    @property
+    def lru(self) -> bool:
+        return True
+
 def _immutable(*args, **kw):
     """
     Function that raises a TypeError when trying to modify an immutable object.
