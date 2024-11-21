@@ -69,7 +69,7 @@ class Table:
         self._storage = storage
         self._name = name
         self._query_cache: LRUCache[QueryLike, List[Document]] = self.query_cache_class(capacity=cache_size)
-        self._next_id = 1
+        self._next_id = None
 
     def __repr__(self):
         args = ['name={!r}'.format(self.name), 'total={}'.format(len(self)), 'storage={}'.format(self._storage)]
@@ -368,7 +368,7 @@ class Table:
         if self._next_id is None:
             table = self._read_table()
             if table:
-                self._next_id = max(table.keys()) + 1
+                self._next_id = max(int(key) for key in table.keys()) + 1
             else:
                 self._next_id = 1
 
