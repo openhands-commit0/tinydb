@@ -69,7 +69,7 @@ class Table:
         self._storage = storage
         self._name = name
         self._query_cache: LRUCache[QueryLike, List[Document]] = self.query_cache_class(capacity=cache_size)
-        self._next_id = None
+        self._next_id = 1
 
     def __repr__(self):
         args = ['name={!r}'.format(self.name), 'total={}'.format(len(self)), 'storage={}'.format(self._storage)]
@@ -376,7 +376,7 @@ class Table:
         self._next_id += 1
         return next_id
 
-    def _read_table(self) -> Dict[str, Mapping]:
+    def _read_table(self) -> Dict[int, Mapping]:
         """
         Read the table data from the underlying storage.
 
@@ -388,7 +388,12 @@ class Table:
         if raw_data is None:
             raw_data = {}
 
-        return raw_data.get(self._name, {})
+        table = raw_data.get(self._name, {})
+        if not isinstance(table, dict):
+            table = {}
+            raw_data[self._name] = table
+
+        return table
 
     def _update_table(self, updater: Callable[[Dict[int, Mapping]], None]):
         """
