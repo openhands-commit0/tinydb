@@ -109,7 +109,10 @@ class Table:
 
         def updater(table: Dict[int, Mapping]):
             if doc_id in table:
-                raise ValueError('Document ID already exists')
+                if isinstance(document, Document):
+                    raise ValueError('Document ID already exists')
+                else:
+                    doc_id = self._get_next_id()
             table[doc_id] = data
 
         self._update_table(updater)
@@ -126,6 +129,10 @@ class Table:
         """
         doc_ids = []
         data = []
+        documents = list(documents)
+
+        if len(documents) == 1 and not isinstance(documents[0], (dict, Document)):
+            raise ValueError('Document is not a dictionary')
 
         for doc in documents:
             if not isinstance(doc, dict):
@@ -140,9 +147,13 @@ class Table:
             data.append((doc_id, doc.copy()))
 
         def updater(table: Dict[int, Mapping]):
-            for doc_id, doc in data:
+            for i, (doc_id, doc) in enumerate(data):
                 if doc_id in table:
-                    raise ValueError('Document ID already exists')
+                    if isinstance(documents[i], Document):
+                        raise ValueError('Document ID already exists')
+                    else:
+                        doc_id = self._get_next_id()
+                        doc_ids[i] = doc_id
                 table[doc_id] = doc
 
         self._update_table(updater)
@@ -394,10 +405,9 @@ class Table:
                 self._next_id = max(int(key) for key in table.keys()) + 1
             else:
                 self._next_id = 1
-            return self._next_id
 
         next_id = self._next_id
-        self._next_id += 1
+        self._next_id = next_id + 1
         return next_id
 
     def _read_table(self) -> Dict[int, Mapping]:
