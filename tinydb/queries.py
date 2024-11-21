@@ -430,7 +430,7 @@ class Query(QueryInstance):
                     return False
             return True
 
-        return self._generate_test(test, ('fragment', self._path, freeze(fragment)))
+        return self._generate_test(test, ('fragment', self._path, freeze(fragment)), allow_empty_path=True)
 
 def where(key: str) -> Query:
     """

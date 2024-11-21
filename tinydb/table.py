@@ -96,29 +96,31 @@ class Table:
         :param document: the document to insert
         :returns: the inserted document's ID
         """
-        if not isinstance(document, dict):
-            if isinstance(document, Document):
-                doc_id = document.doc_id
-                document = dict(document)
-            else:
-                raise ValueError('Document is not a dictionary')
+        if not isinstance(document, dict) and not isinstance(document, Document):
+            raise ValueError('Document is not a Mapping')
+
+        if isinstance(document, Document):
+            doc_id = document.doc_id
+            document = dict(document)
         else:
             doc_id = self._get_next_id()
 
         data = document.copy()
+        final_doc_id = doc_id
 
         def updater(table: Dict[int, Mapping]):
-            if doc_id in table:
+            nonlocal final_doc_id
+            if final_doc_id in table:
                 if isinstance(document, Document):
                     raise ValueError('Document ID already exists')
                 else:
-                    doc_id = self._get_next_id()
-            table[doc_id] = data
+                    final_doc_id = self._get_next_id()
+            table[final_doc_id] = data
 
         self._update_table(updater)
         self._query_cache.clear()
 
-        return doc_id
+        return final_doc_id
 
     def insert_multiple(self, documents: Iterable[Mapping]) -> List[int]:
         """
@@ -132,34 +134,39 @@ class Table:
         documents = list(documents)
 
         if len(documents) == 1 and not isinstance(documents[0], (dict, Document)):
-            raise ValueError('Document is not a dictionary')
+            raise ValueError('Document is not a Mapping')
 
         for doc in documents:
-            if not isinstance(doc, dict):
-                if isinstance(doc, Document):
-                    doc_id = doc.doc_id
-                    doc = dict(doc)
-                else:
-                    raise ValueError('Document is not a dictionary')
+            if not isinstance(doc, dict) and not isinstance(doc, Document):
+                raise ValueError('Document is not a Mapping')
+
+            if isinstance(doc, Document):
+                doc_id = doc.doc_id
+                doc = dict(doc)
             else:
                 doc_id = self._get_next_id()
             doc_ids.append(doc_id)
             data.append((doc_id, doc.copy()))
 
+        final_doc_ids = doc_ids.copy()
+
         def updater(table: Dict[int, Mapping]):
+            nonlocal final_doc_ids
             for i, (doc_id, doc) in enumerate(data):
                 if doc_id in table:
                     if isinstance(documents[i], Document):
                         raise ValueError('Document ID already exists')
                     else:
-                        doc_id = self._get_next_id()
-                        doc_ids[i] = doc_id
-                table[doc_id] = doc
+                        new_id = self._get_next_id()
+                        final_doc_ids[i] = new_id
+                        table[new_id] = doc
+                else:
+                    table[doc_id] = doc
 
         self._update_table(updater)
         self._query_cache.clear()
 
-        return doc_ids
+        return final_doc_ids
 
     def all(self) -> List[Document]:
         """
@@ -364,7 +371,13 @@ class Table:
         """
         Truncate the table by removing all documents.
         """
-        self.remove()
+        def updater(table: Dict[int, Mapping]):
+            table.clear()
+            return []
+
+        self._update_table(updater)
+        self._query_cache.clear()
+        self._next_id = 1
 
     def count(self, cond: QueryLike) -> int:
         """
