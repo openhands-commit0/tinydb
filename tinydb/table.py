@@ -102,25 +102,20 @@ class Table:
         if isinstance(document, Document):
             doc_id = document.doc_id
             document = dict(document)
+            if doc_id in self._read_table():
+                raise ValueError('Document ID already exists')
         else:
             doc_id = self._get_next_id()
 
         data = dict(document)
-        final_doc_id = doc_id
 
         def updater(table: Dict[int, Mapping]):
-            nonlocal final_doc_id
-            if final_doc_id in table:
-                if isinstance(document, Document):
-                    raise ValueError('Document ID already exists')
-                else:
-                    final_doc_id = self._get_next_id()
-            table[final_doc_id] = data
+            table[doc_id] = data
 
         self._update_table(updater)
         self._query_cache.clear()
 
-        return final_doc_id
+        return doc_id
 
     def insert_multiple(self, documents: Iterable[Mapping]) -> List[int]:
         """
@@ -136,6 +131,7 @@ class Table:
         if len(documents) == 1 and not isinstance(documents[0], Mapping):
             raise ValueError('Document is not a Mapping')
 
+        table = self._read_table()
         for doc in documents:
             if not isinstance(doc, Mapping):
                 raise ValueError('Document is not a Mapping')
@@ -143,30 +139,21 @@ class Table:
             if isinstance(doc, Document):
                 doc_id = doc.doc_id
                 doc = dict(doc)
+                if doc_id in table:
+                    raise ValueError('Document ID already exists')
             else:
                 doc_id = self._get_next_id()
             doc_ids.append(doc_id)
             data.append((doc_id, dict(doc)))
 
-        final_doc_ids = doc_ids.copy()
-
         def updater(table: Dict[int, Mapping]):
-            nonlocal final_doc_ids
-            for i, (doc_id, doc) in enumerate(data):
-                if doc_id in table:
-                    if isinstance(documents[i], Document):
-                        raise ValueError('Document ID already exists')
-                    else:
-                        new_id = self._get_next_id()
-                        final_doc_ids[i] = new_id
-                        table[new_id] = doc
-                else:
-                    table[doc_id] = doc
+            for doc_id, doc in data:
+                table[doc_id] = doc
 
         self._update_table(updater)
         self._query_cache.clear()
 
-        return final_doc_ids
+        return doc_ids
 
     def all(self) -> List[Document]:
         """
@@ -185,13 +172,16 @@ class Table:
         :param cond: the condition to check against
         :returns: list of matching documents
         """
+        if hasattr(cond, 'is_cacheable') and not cond.is_cacheable():
+            return [doc for doc in self.all() if cond(doc)]
+
         if cond in self._query_cache:
-            return self._query_cache[cond]
+            return list(self._query_cache[cond])
 
         docs = [doc for doc in self.all() if cond(doc)]
         self._query_cache[cond] = docs
 
-        return docs
+        return list(docs)
 
     def get(self, cond: Optional[QueryLike]=None, doc_id: Optional[int]=None, doc_ids: Optional[List]=None) -> Optional[Union[Document, List[Document]]]:
         """
@@ -418,7 +408,6 @@ class Table:
                 self._next_id = max(int(key) for key in table.keys()) + 1
             else:
                 self._next_id = 1
-            return self._next_id
 
         next_id = self._next_id
         self._next_id = next_id + 1
