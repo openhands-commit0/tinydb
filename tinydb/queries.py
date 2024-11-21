@@ -188,7 +188,13 @@ class Query(QueryInstance):
             except (KeyError, TypeError, ValueError):
                 return False
 
-        return QueryInstance(runner, hashval if self.is_cacheable() else None)
+        return QueryInstance(runner, hashval)
+
+    def is_cacheable(self) -> bool:
+        """
+        Return whether this query is cacheable.
+        """
+        return True
 
     def __eq__(self, rhs: Any):
         """
@@ -400,6 +406,22 @@ class Query(QueryInstance):
         query._path = self._path + (fn,)
         query._hash = ('path', query._path) if self.is_cacheable() else None
         return query
+
+    def fragment(self, fragment: dict) -> QueryInstance:
+        """
+        Match a fragment of a document.
+
+        >>> Query().fragment({'foo': True})
+
+        :param fragment: The fragment to match against
+        """
+        def test(value):
+            for key, expected in fragment.items():
+                if key not in value or value[key] != expected:
+                    return False
+            return True
+
+        return self._generate_test(test, ('fragment', self._path, freeze(fragment)))
 
 def where(key: str) -> Query:
     """
