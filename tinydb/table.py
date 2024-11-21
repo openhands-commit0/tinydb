@@ -96,7 +96,7 @@ class Table:
         :param document: the document to insert
         :returns: the inserted document's ID
         """
-        if not isinstance(document, dict) and not isinstance(document, Document):
+        if not isinstance(document, Mapping):
             raise ValueError('Document is not a Mapping')
 
         if isinstance(document, Document):
@@ -105,7 +105,7 @@ class Table:
         else:
             doc_id = self._get_next_id()
 
-        data = document.copy()
+        data = dict(document)
         final_doc_id = doc_id
 
         def updater(table: Dict[int, Mapping]):
@@ -133,11 +133,11 @@ class Table:
         data = []
         documents = list(documents)
 
-        if len(documents) == 1 and not isinstance(documents[0], (dict, Document)):
+        if len(documents) == 1 and not isinstance(documents[0], Mapping):
             raise ValueError('Document is not a Mapping')
 
         for doc in documents:
-            if not isinstance(doc, dict) and not isinstance(doc, Document):
+            if not isinstance(doc, Mapping):
                 raise ValueError('Document is not a Mapping')
 
             if isinstance(doc, Document):
@@ -146,7 +146,7 @@ class Table:
             else:
                 doc_id = self._get_next_id()
             doc_ids.append(doc_id)
-            data.append((doc_id, doc.copy()))
+            data.append((doc_id, dict(doc)))
 
         final_doc_ids = doc_ids.copy()
 
@@ -418,6 +418,7 @@ class Table:
                 self._next_id = max(int(key) for key in table.keys()) + 1
             else:
                 self._next_id = 1
+            return self._next_id
 
         next_id = self._next_id
         self._next_id = next_id + 1

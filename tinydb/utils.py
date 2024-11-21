@@ -110,7 +110,7 @@ def freeze(obj):
     """
     if isinstance(obj, dict):
         return FrozenDict((k, freeze(v)) for k, v in obj.items())
-    elif isinstance(obj, list):
+    elif isinstance(obj, (list, tuple)):
         return tuple(freeze(el) for el in obj)
     elif isinstance(obj, set):
         return frozenset(freeze(el) for el in obj)
