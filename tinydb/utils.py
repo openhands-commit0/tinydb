@@ -22,7 +22,7 @@ def with_typehint(baseclass: Type[T]):
     MyPy does not. For that reason TinyDB has a MyPy plugin in
     ``mypy_plugin.py`` that adds support for this pattern.
     """
-    pass
+    return baseclass
 
 class LRUCache(abc.MutableMapping, Generic[K, V]):
     """
@@ -43,25 +43,36 @@ class LRUCache(abc.MutableMapping, Generic[K, V]):
         self.cache: OrderedDict[K, V] = OrderedDict()
 
     def __len__(self) -> int:
-        return self.length
+        return len(self.cache)
 
     def __contains__(self, key: object) -> bool:
         return key in self.cache
 
     def __setitem__(self, key: K, value: V) -> None:
-        self.set(key, value)
+        if key in self.cache:
+            del self.cache[key]
+        self.cache[key] = value
+        if self.capacity is not None and len(self.cache) > self.capacity:
+            self.cache.popitem(last=False)  # Remove first item (least recently used)
 
     def __delitem__(self, key: K) -> None:
         del self.cache[key]
 
     def __getitem__(self, key) -> V:
-        value = self.get(key)
-        if value is None:
+        if key not in self.cache:
             raise KeyError(key)
+        value = self.cache.pop(key)
+        self.cache[key] = value  # Move to end
         return value
 
     def __iter__(self) -> Iterator[K]:
         return iter(self.cache)
+
+def _immutable(*args, **kw):
+    """
+    Function that raises a TypeError when trying to modify an immutable object.
+    """
+    raise TypeError('object is immutable')
 
 class FrozenDict(dict):
     """
@@ -84,4 +95,10 @@ def freeze(obj):
     """
     Freeze an object by making it immutable and thus hashable.
     """
-    pass
+    if isinstance(obj, dict):
+        return FrozenDict((k, freeze(v)) for k, v in obj.items())
+    elif isinstance(obj, list):
+        return tuple(freeze(el) for el in obj)
+    elif isinstance(obj, set):
+        return frozenset(freeze(el) for el in obj)
+    return obj
