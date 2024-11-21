@@ -94,7 +94,13 @@ class TinyDB(TableBase):
         :param name: The name of the table.
         :param kwargs: Keyword arguments to pass to the table class constructor
         """
-        pass
+        if name in self._tables:
+            return self._tables[name]
+
+        table = self.table_class(self._storage, name, **kwargs)
+        self._tables[name] = table
+
+        return table
 
     def tables(self) -> Set[str]:
         """
@@ -102,13 +108,18 @@ class TinyDB(TableBase):
 
         :returns: a set of table names
         """
-        pass
+        data = self._storage.read()
+        if data is None:
+            return set()
+
+        return set(data.keys())
 
     def drop_tables(self) -> None:
         """
         Drop all tables from the database. **CANNOT BE REVERSED!**
         """
-        pass
+        self._storage.write({})
+        self._tables.clear()
 
     def drop_table(self, name: str) -> None:
         """
@@ -116,7 +127,13 @@ class TinyDB(TableBase):
 
         :param name: The name of the table to drop.
         """
-        pass
+        data = self._storage.read()
+        if data is None:
+            data = {}
+
+        data.pop(name, None)
+        self._storage.write(data)
+        self._tables.pop(name, None)
 
     @property
     def storage(self) -> Storage:
@@ -126,7 +143,7 @@ class TinyDB(TableBase):
         :return: This instance's storage
         :rtype: Storage
         """
-        pass
+        return self._storage
 
     def close(self) -> None:
         """
@@ -143,7 +160,8 @@ class TinyDB(TableBase):
 
         Upon leaving this context, the ``close`` method will be called.
         """
-        pass
+        self._opened = False
+        self._storage.close()
 
     def __enter__(self):
         """
